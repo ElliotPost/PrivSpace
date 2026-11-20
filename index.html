@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PrivSpace</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js"></script>
+</head>
+<body>
+    <header>
+        <div class="logo">PrivSpace</div>
+        <div class="tabs">
+            <button class="tab active" data-type="movie">Movies</button>
+            <button class="tab" data-type="tv">TV Shows</button>
+        </div>
+        <input type="text" id="search" placeholder="Search...">
+    </header>
+
+    <main id="grid"></main>
+
+    <div id="modal" class="hidden">
+        <div class="modal-content">
+            <span id="close">&times;</span>
+            <h2 id="m-title"></h2>
+            <img id="m-poster" src="" alt="">
+            <p id="m-plot"></p>
+            
+            <div id="episode-selector" class="hidden">
+                <h3>Select Episode</h3>
+                <div id="season-tabs"></div>
+                <div id="episode-list"></div>
+            </div>
+            
+            <div id="player-container">
+                <div id="output"></div>
+                <div id="loading" class="hidden">Buffering stream...</div>
+            </div>
+            
+            <div id="source-list"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
