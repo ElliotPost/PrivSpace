@@ -8,36 +8,63 @@
     <script src="https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js"></script>
 </head>
 <body>
-    <header>
-        <div class="logo">PrivSpace</div>
-        <div class="tabs">
-            <button class="tab active" data-type="movie">Movies</button>
-            <button class="tab" data-type="tv">TV Shows</button>
+    <nav class="navbar">
+        <div class="nav-left">
+            <h1 class="brand">PRIVSPACE</h1>
+            <div class="nav-links">
+                <a href="#" class="nav-link active" data-type="movie">Movies</a>
+                <a href="#" class="nav-link" data-type="tv">TV Shows</a>
+            </div>
         </div>
-        <input type="text" id="search" placeholder="Search...">
-    </header>
+        <div class="nav-right">
+            <div class="search-box">
+                <input type="text" id="search" placeholder="Search titles...">
+            </div>
+        </div>
+    </nav>
 
-    <main id="grid"></main>
+    <main class="content">
+        <div id="grid" class="movie-grid"></div>
+    </main>
 
-    <div id="modal" class="hidden">
-        <div class="modal-content">
-            <span id="close">&times;</span>
-            <h2 id="m-title"></h2>
-            <img id="m-poster" src="" alt="">
-            <p id="m-plot"></p>
+    <div id="modal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-container">
+            <button class="modal-close">&times;</button>
             
-            <div id="episode-selector" class="hidden">
-                <h3>Select Episode</h3>
-                <div id="season-tabs"></div>
-                <div id="episode-list"></div>
+            <div class="modal-header">
+                <img id="m-backdrop" src="" alt="" class="backdrop-img">
+                <div class="modal-overlay"></div>
             </div>
             
-            <div id="player-container">
-                <div id="output"></div>
-                <div id="loading" class="hidden">Buffering stream...</div>
+            <div class="modal-body">
+                <div class="modal-info">
+                    <div class="poster-container">
+                        <img id="m-poster" src="" alt="" class="poster-img">
+                    </div>
+                    <div class="details">
+                        <h2 id="m-title" class="title"></h2>
+                        <p id="m-plot" class="plot"></p>
+                        
+                        <div id="episode-selector" class="hidden">
+                            <h3 class="section-title">Episodes</h3>
+                            <div id="season-tabs" class="season-tabs"></div>
+                            <div id="episode-list" class="episode-list"></div>
+                        </div>
+                        
+                        <div class="player-section">
+                            <div id="player-container" class="player-container">
+                                <div id="output"></div>
+                                <div id="loading" class="loading hidden">
+                                    <div class="spinner"></div>
+                                    <p>Buffering stream...</p>
+                                </div>
+                            </div>
+                            <div id="source-list" class="source-list"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            
-            <div id="source-list"></div>
         </div>
     </div>
 
