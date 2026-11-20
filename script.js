@@ -14,18 +14,31 @@ let currentTorrent = null;
 let currentShow = null;
 let currentSeason = 1;
 
-// CORS proxy for 1337x scraping
 const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+
+// Navbar scroll effect
+window.addEventListener('scroll', () => {
+    const navbar = document.querySelector('.navbar');
+    if (window.scrollY > 50) {
+        navbar.classList.add('scrolled');
+    } else {
+        navbar.classList.remove('scrolled');
+    }
+});
 
 // 1. Search TMDB
 async function searchTMDB(query, type = 'movie') {
     const url = type === 'movie' 
-        ? `https://api.themoviedb.org/3/search/movie?api_key=${API_KEY}&query=${query}`
-        : `https://api.themoviedb.org/3/search/tv?api_key=${API_KEY}&query=${query}`;
+        ? `https://api.themoviedb.org/3/search/movie?api_key=${API_KEY}&query=${encodeURIComponent(query)}`
+        : `https://api.themoviedb.org/3/search/tv?api_key=${API_KEY}&query=${encodeURIComponent(query)}`;
     
-    const res = await fetch(url);
-    const data = await res.json();
-    renderGrid(data.results, type);
+    try {
+        const res = await fetch(url);
+        const data = await res.json();
+        renderGrid(data.results, type);
+    } catch (e) {
+        console.error('TMDB error:', e);
+    }
 }
 
 // 2. Render Grid
@@ -79,13 +92,13 @@ async function getEpisodeMagnets(showTitle, season, episode) {
         
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
-        const rows = doc.querySelectorAll('.box-info-detail table tbody tr, .table-list tbody tr');
+        const rows = doc.querySelectorAll('table tbody tr');
         
         const results = [];
         rows.forEach(row => {
-            const nameCell = row.querySelector('.coll-1 a, td:nth-child(1) a');
-            const seedsCell = row.querySelector('.coll-2, td:nth-child(2)');
-            const sizeCell = row.querySelector('.coll-3, td:nth-child(3)');
+            const nameCell = row.querySelector('td:nth-child(1) a');
+            const seedsCell = row.querySelector('td:nth-child(2)');
+            const sizeCell = row.querySelector('td:nth-child(3)');
             
             if (nameCell) {
                 const name = nameCell.textContent.trim();
@@ -93,21 +106,14 @@ async function getEpisodeMagnets(showTitle, season, episode) {
                 const seeds = seedsCell ? parseInt(seedsCell.textContent) : 0;
                 const size = sizeCell ? sizeCell.textContent.trim() : 'Unknown';
                 
-                results.push({
-                    name: name,
-                    link: link,
-                    seeds: seeds,
-                    size: size
-                });
+                results.push({ name, link, seeds, size });
             }
         });
         
-        // Sort by seeds
         results.sort((a, b) => b.seeds - a.seeds);
         
-        // Get magnet links for top 5 results
         const magnets = [];
-        for (let i = 0; i < Math.min(5, results.length); i++) {
+        for (let i = 0; i < Math.min(3, results.length); i++) {
             const magnet = await getMagnetFromLink(results[i].link);
             if (magnet) {
                 magnets.push({
@@ -121,12 +127,12 @@ async function getEpisodeMagnets(showTitle, season, episode) {
         
         return magnets;
     } catch (e) {
-        console.error('1337x scraper error:', e);
+        console.error('1337x error:', e);
         return [];
     }
 }
 
-// 5. Extract magnet from 1337x torrent page
+// 5. Extract magnet from 1337x
 async function getMagnetFromLink(path) {
     try {
         const url = `https://1337x.to${path}`;
@@ -135,29 +141,27 @@ async function getMagnetFromLink(path) {
         const html = await res.text();
         
         const match = html.match(/href="(magnet:\?[^"]+)"/);
-        if (match) {
-            return match[1];
-        }
+        if (match) return match[1];
     } catch (e) {
         console.error('Magnet extraction error:', e);
     }
     return null;
 }
 
-// 6. Fetch TV Show Seasons/Episodes from TMDB
+// 6. Fetch TV Show Details
 async function getShowDetails(tvId) {
     const res = await fetch(`https://api.themoviedb.org/3/tv/${tvId}?api_key=${API_KEY}`);
     return await res.json();
 }
 
-// 7. Render Season/Episode Selector
+// 7. Render Episode Selector
 async function renderEpisodeSelector(show) {
     const details = await getShowDetails(show.id);
     currentShow = show;
     
     SEASON_TABS.innerHTML = '';
     details.seasons.forEach(season => {
-        if (season.season_number === 0) return; // Skip specials
+        if (season.season_number === 0) return;
         
         const tab = document.createElement('button');
         tab.className = 'season-tab' + (season.season_number === 1 ? ' active' : '');
@@ -170,15 +174,13 @@ async function renderEpisodeSelector(show) {
     EPISODE_SELECTOR.classList.remove('hidden');
 }
 
-// 8. Select Season and Show Episodes
+// 8. Select Season
 async function selectSeason(seasonNum, seasons) {
     currentSeason = seasonNum;
     
     document.querySelectorAll('.season-tab').forEach(tab => {
         tab.classList.remove('active');
-        if (tab.textContent === `Season ${seasonNum}`) {
-            tab.classList.add('active');
-        }
+        if (tab.textContent === `Season ${seasonNum}`) tab.classList.add('active');
     });
     
     const season = seasons.find(s => s.season_number === seasonNum);
@@ -197,25 +199,22 @@ async function selectSeason(seasonNum, seasons) {
     });
 }
 
-// 9. Select Episode and Load Streams
+// 9. Select Episode
 async function selectEpisode(episodeNum) {
     document.querySelectorAll('.episode-btn').forEach(btn => {
         btn.classList.remove('active');
-        if (btn.textContent.startsWith(`E${episodeNum}:`)) {
-            btn.classList.add('active');
-        }
+        if (btn.textContent.startsWith(`E${episodeNum}:`)) btn.classList.add('active');
     });
     
-    SOURCE_LIST.innerHTML = 'Fetching streams...';
+    SOURCE_LIST.innerHTML = '';
     OUTPUT.innerHTML = '';
     LOADING.classList.remove('hidden');
-    LOADING.innerText = 'Searching sources...';
     
     const sources = await getEpisodeMagnets(currentShow.name, currentSeason, episodeNum);
     displaySources(sources);
 }
 
-// 10. Display Sources and Auto-play Best
+// 10. Display Sources
 function displaySources(sources) {
     SOURCE_LIST.innerHTML = '';
     
@@ -234,12 +233,11 @@ function displaySources(sources) {
             if (index === 0) btn.click();
         });
     } else {
-        LOADING.innerText = 'No streams found.';
-        SOURCE_LIST.innerText = '';
+        LOADING.innerHTML = '<p>No streams found.</p>';
     }
 }
 
-// 11. Play Stream via WebTorrent
+// 11. Play Stream
 function playStream(magnet) {
     LOADING.classList.remove('hidden');
     OUTPUT.innerHTML = '';
@@ -252,66 +250,4 @@ function playStream(magnet) {
         currentTorrent = torrent;
         const file = torrent.files.find(f => 
             f.name.endsWith('.mp4') || 
-            f.name.endsWith('.mkv') || 
-            f.name.endsWith('.avi') ||
-            f.name.endsWith('.webm')
-        );
-        
-        if (file) {
-            file.appendTo('#output');
-            LOADING.classList.add('hidden');
-        } else {
-            LOADING.innerText = "No compatible video file found.";
-        }
-    });
-}
-
-// 12. Open Modal
-async function openModal(item, type) {
-    const title = type === 'movie' ? item.title : item.name;
-    const year = (item.release_date || item.first_air_date || '').split('-')[0];
-    
-    document.getElementById('m-title').innerText = title;
-    document.getElementById('m-plot').innerText = item.overview;
-    document.getElementById('m-poster').src = `https://image.tmdb.org/t/p/w500${item.poster_path}`;
-    
-    SOURCE_LIST.innerHTML = '';
-    OUTPUT.innerHTML = '';
-    LOADING.classList.remove('hidden');
-    LOADING.innerText = 'Searching sources...';
-    EPISODE_SELECTOR.classList.add('hidden');
-    
-    if (type === 'movie') {
-        const sources = await getMovieMagnets(title, year);
-        displaySources(sources);
-    } else {
-        await renderEpisodeSelector(item);
-    }
-    
-    MODAL.classList.remove('hidden');
-}
-
-// Event Listeners
-document.getElementById('close').onclick = () => {
-    MODAL.classList.add('hidden');
-    if (currentTorrent) currentTorrent.destroy();
-};
-
-document.querySelectorAll('.tab').forEach(tab => {
-    tab.onclick = () => {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        const type = tab.dataset.type;
-        searchTMDB(SEARCH.value || 'avengers', type);
-    };
-});
-
-SEARCH.addEventListener('keyup', (e) => {
-    if (e.key === 'Enter') {
-        const type = document.querySelector('.tab.active').dataset.type;
-        searchTMDB(e.target.value, type);
-    }
-});
-
-// Initial load
-searchTMDB('avengers', 'movie');
+            f.name
